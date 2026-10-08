@@ -1,0 +1,43 @@
+# Deploy Blueprint untuk Render (Laravel API + SPA fallback)
+# Secret (sync: false) diisi saat pertama kali connect repo di dashboard Render.
+services:
+  - type: web
+    name: scraping-fenomena
+    runtime: php
+    plan: free
+    buildCommand: "composer install --no-dev --optimize-autoloader && npm ci && npm run build"
+    startCommand: "php artisan migrate --force && php artisan serve --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /up
+    envVars:
+      - key: PHP_VERSION
+        value: "8.3"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        value: postgres
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: CRON_TOKEN
+        sync: false

@@ -1,0 +1,73 @@
+name: Monthly Crawl Trigger
+
+# 19:00 UTC = 02:00 WIB (jadwal crawl di Laravel: tgl 1 main, tgl 10 addon).
+# Dipanggil setiap hari; endpoint yang menentukan apakah jadwal jatuh tempo
+# (tanggal 1-2 untuk window main, 10-11 untuk window addon) dan melewati
+# run yang sudah berjalan (idempotency check).
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      window:
+        description: 'Window crawl (main/addon). Kosongkan untuk jadwal otomatis.'
+        required: false
+        type: choice
+        options:
+          - ''
+          - main
+          - addon
+      period:
+        description: 'Periode format YYYY-MM (default: bulan lalu)'
+        required: false
+        type: string
+      force:
+        description: 'Paksa run walau baru saja berjalan (true/false)'
+        required: false
+        type: string
+        default: 'false'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Panggil endpoint schedule Laravel
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
+          INPUT_WINDOW: ${{ inputs.window }}
+          INPUT_PERIOD: ${{ inputs.period }}
+          INPUT_FORCE: ${{ inputs.force }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::Secret API_BASE_URL belum di-set di repository Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          if [ -z "$CRON_TOKEN" ]; then
+            echo "::error::Secret CRON_TOKEN belum di-set di repository Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
+          # Body JSON (kosong untuk trigger terjadwal otomatis)
+          BODY='{}'
+          if [ -n "$INPUT_WINDOW" ] || [ -n "$INPUT_PERIOD" ] || [ "$INPUT_FORCE" = "true" ]; then
+            BODY=$(python3 -c "import json,os; print(json.dumps({'window':os.environ.get('INPUT_WINDOW') or None,'period':os.environ.get('INPUT_PERIOD') or None,'force':os.environ.get('INPUT_FORCE')=='true'}))")
+          fi
+
+          echo "POST ${API_BASE_URL}/api/internal/run-schedule"
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "${API_BASE_URL}/api/internal/run-schedule" \
+            -H "Authorization: Bearer ${CRON_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            --max-time 900 --retry 3 --retry-delay 30)
+
+          echo "HTTP ${HTTP_CODE}"
+          cat response.json
+          echo
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Endpoint mengembalikan status ${HTTP_CODE}"
+            exit 1
+          fi

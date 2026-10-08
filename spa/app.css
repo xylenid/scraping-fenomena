@@ -1,0 +1,4 @@
+@import '../resources/css/app.css';
+
+/* Tailwind v4 auto-detection berbasis vite root (spa/), jadi scan folder frontend secara eksplisit */
+@source '../resources/js';

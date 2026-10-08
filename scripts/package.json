@@ -1,0 +1,8 @@
+{
+  "name": "scraping-fenomena-scripts",
+  "private": true,
+  "description": "Node scripts pendukung crawler (Playwright fallback)",
+  "dependencies": {
+    "playwright": "^1.45.0"
+  }
+}
