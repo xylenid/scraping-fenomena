@@ -1,13 +1,31 @@
 import axios from 'axios';
 
-const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+/**
+ * URL backend. Wajib diisi saat build (Vite menyalin nilainya ke bundle),
+ * karena SPA di-deploy terpisah dari API.
+ */
+const apiBase = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+
+export const API_CONFIGURED = apiBase !== '';
 
 export const http = axios.create({
     baseURL: `${apiBase}/api/v1`,
     headers: { Accept: 'application/json' },
 });
 
+const CONFIG_HINT =
+    'VITE_API_BASE_URL belum diisi saat build. Set variabel tersebut di Vercel lalu deploy ulang.';
+
 export function errorMessage(error, fallback = 'Terjadi kesalahan saat menghubungi server.') {
+    if (!API_CONFIGURED) {
+        return CONFIG_HINT;
+    }
+
+    // Rewrite catch-all di hosting SPA bisa membalas HTML dengan status 200.
+    if (typeof error?.response?.data === 'string' && error.response.data.trimStart().startsWith('<')) {
+        return 'Server membalas HTML, bukan JSON. Periksa URL API backend.';
+    }
+
     return error?.response?.data?.message
         ?? Object.values(error?.response?.data?.errors ?? {})?.flat()?.[0]
         ?? fallback;
