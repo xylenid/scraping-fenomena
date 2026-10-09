@@ -7,3 +7,63 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+@layer components {
+    .card {
+        @apply rounded-xl border border-slate-200 bg-white;
+    }
+
+    .card-pad {
+        @apply p-5;
+    }
+
+    .card-title {
+        @apply text-sm font-semibold tracking-tight text-slate-900;
+    }
+
+    .card-subtitle {
+        @apply text-xs text-slate-500;
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors
+            disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .btn-primary {
+        @apply bg-slate-900 text-white hover:bg-slate-800;
+    }
+
+    .btn-accent {
+        @apply bg-emerald-600 text-white hover:bg-emerald-700;
+    }
+
+    .btn-secondary {
+        @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    }
+
+    .btn-ghost {
+        @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    }
+
+    .field-label {
+        @apply mb-1 block text-xs font-medium text-slate-600;
+    }
+
+    .input {
+        @apply h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900
+            placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900;
+    }
+
+    .th {
+        @apply whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+    }
+
+    .td {
+        @apply px-4 py-3 align-middle text-sm text-slate-700;
+    }
+
+    .num {
+        @apply font-mono text-[13px] tabular-nums;
+    }
+}

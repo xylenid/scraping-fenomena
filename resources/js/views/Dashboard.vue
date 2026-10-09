@@ -1,188 +1,185 @@
 <template>
     <div class="space-y-6">
-        <!-- Stat cards -->
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-900">Ringkasan pengumpulan</h2>
+                <p class="text-xs text-slate-500">
+                    Data berita ekonomi sebagai explanatory variables analisis ekspor.
+                </p>
+            </div>
+            <div class="w-44">
+                <label class="field-label" for="dashboard-period">Periode target</label>
+                <select id="dashboard-period" v-model="period" class="input" @change="load">
+                    <option value="">Semua periode</option>
+                    <option v-for="p in stats.periods ?? []" :key="p" :value="p">{{ formatPeriod(p) }}</option>
+                </select>
+            </div>
+        </div>
+
+        <p v-if="error" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {{ error }}
+        </p>
+
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div v-for="card in statCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ card.label }}</span>
-                    <span class="text-lg">{{ card.icon }}</span>
-                </div>
-                <div class="mt-2 text-2xl font-bold text-slate-900">{{ card.value }}</div>
-                <div class="mt-1 text-xs text-slate-500">{{ card.sub }}</div>
-            </div>
+            <StatCard
+                label="Total Artikel"
+                :value="formatNumber(stats.total_articles)"
+                :sub="period ? `Periode ${formatPeriod(period)}` : 'Seluruh periode tersimpan'"
+            />
+            <StatCard
+                label="Perlu Review"
+                :value="formatNumber(stats.needs_review)"
+                sub="Kategori atau tanggal belum pasti"
+            />
+            <StatCard
+                label="Artikel Addon"
+                :value="formatNumber(stats.addon_articles)"
+                sub="Tanggal kejadian 1–10 bulan berikutnya"
+            />
+            <StatCard
+                label="Sumber Aktif"
+                :value="formatNumber(stats.total_sources)"
+                sub="Media yang ikut terjadwal crawl"
+            />
         </div>
 
-        <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <!-- Kategori -->
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 class="mb-4 text-sm font-semibold text-slate-900">Kategori Fenomena</h3>
-                <div v-if="stats.by_category" class="space-y-3">
-                    <div v-for="(count, cat) in stats.by_category" :key="cat" class="flex items-center gap-3">
-                        <span class="w-24 text-xs font-medium text-slate-600">{{ categoryLabel(cat) }}</span>
-                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                            <div class="h-full rounded-full" :style="{ width: barWidth(count), backgroundColor: categoryColor(cat) }"></div>
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <section class="card">
+                <header class="flex items-baseline justify-between border-b border-slate-200 px-5 py-4">
+                    <h3 class="card-title">Kategori Fenomena</h3>
+                    <span class="card-subtitle">Klasifikasi utama</span>
+                </header>
+                <div v-if="categoryRows.length" class="space-y-3.5 px-5 py-5">
+                    <div v-for="row in categoryRows" :key="row.key" class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-3">
+                        <span class="truncate text-xs font-medium text-slate-600">{{ row.label }}</span>
+                        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-emerald-500" :style="{ width: barWidth(row.count) }"></div>
                         </div>
-                        <span class="w-8 text-right text-xs font-semibold text-slate-700">{{ count }}</span>
+                        <span class="num text-right text-slate-700">{{ row.count }}</span>
                     </div>
                 </div>
-                <p v-else class="text-sm text-slate-400">Belum ada data.</p>
-            </div>
+                <EmptyState v-else title="Belum ada klasifikasi" description="Jalankan crawl untuk mengisi kategori artikel." />
+            </section>
 
-            <!-- Per sumber -->
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 class="mb-4 text-sm font-semibold text-slate-900">Artikel per Sumber</h3>
-                <div v-if="stats.by_source?.length" class="space-y-3">
-                    <div v-for="row in stats.by_source" :key="row.code" class="flex items-center gap-3">
-                        <span class="w-32 truncate text-xs font-medium text-slate-600">{{ row.source }}</span>
-                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                            <div class="h-full rounded-full bg-indigo-500" :style="{ width: barWidth(row.total) }"></div>
+            <section class="card">
+                <header class="flex items-baseline justify-between border-b border-slate-200 px-5 py-4">
+                    <h3 class="card-title">Artikel per Sumber</h3>
+                    <span class="card-subtitle">Diurutkan terbanyak</span>
+                </header>
+                <div v-if="sourceRows.length" class="space-y-3.5 px-5 py-5">
+                    <div v-for="row in sourceRows" :key="row.code ?? row.source" class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-3">
+                        <span class="truncate text-xs font-medium text-slate-600" :title="row.source">{{ row.source }}</span>
+                        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-slate-400" :style="{ width: barWidth(row.total) }"></div>
                         </div>
-                        <span class="w-8 text-right text-xs font-semibold text-slate-700">{{ row.total }}</span>
+                        <span class="num text-right text-slate-700">{{ row.total }}</span>
                     </div>
                 </div>
-                <p v-else class="text-sm text-slate-400">Belum ada data.</p>
-            </div>
-
-            <!-- Job terakhir -->
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 class="mb-4 text-sm font-semibold text-slate-900">Crawl Job Terakhir</h3>
-                <div v-if="stats.latest_job" class="space-y-3 text-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Periode</span>
-                        <span class="font-semibold text-slate-900">{{ stats.latest_job.period }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Window</span>
-                        <span class="font-semibold text-slate-900">{{ stats.latest_job.window_type }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Status</span>
-                        <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusClass(stats.latest_job.status)">
-                            {{ stats.latest_job.status }}
-                        </span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Artikel disimpan</span>
-                        <span class="font-semibold text-slate-900">{{ stats.latest_job.stats?.kept ?? 0 }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Selesai</span>
-                        <span class="font-semibold text-slate-900">{{ formatDate(stats.latest_job.finished_at) }}</span>
-                    </div>
-                </div>
-                <p v-else class="text-sm text-slate-400">Belum ada job dijalankan.</p>
-            </div>
+                <EmptyState v-else title="Belum ada artikel tersimpan" description="Crawl pertama akan mengisi data per sumber." />
+            </section>
         </div>
 
-        <!-- Aksi cepat -->
-        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 class="mb-3 text-sm font-semibold text-slate-900">Jalankan Crawl Manual</h3>
-            <div class="flex flex-wrap items-end gap-3">
+        <section class="card">
+            <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <h3 class="card-title">Crawl Job Terakhir</h3>
+                <RouterLink to="/crawl-jobs" class="text-xs font-medium text-slate-500 transition-colors hover:text-slate-900">
+                    Lihat semua job
+                </RouterLink>
+            </header>
+
+            <div v-if="job" class="grid grid-cols-2 gap-x-6 gap-y-5 px-5 py-5 sm:grid-cols-4">
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-600">Periode (YYYY-MM)</label>
-                    <input
-                        v-model="runPeriod"
-                        type="month"
-                        class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
+                    <p class="text-xs text-slate-500">Periode</p>
+                    <p class="mt-1 text-sm font-medium text-slate-900">{{ formatPeriod(job.period) }}</p>
                 </div>
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-600">Window</label>
-                    <select
-                        v-model="runWindow"
-                        class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    >
-                        <option value="main">Main (1–30 bulan target)</option>
-                        <option value="addon">Addon (1–10 bulan berikutnya)</option>
-                    </select>
+                    <p class="text-xs text-slate-500">Window</p>
+                    <p class="mt-1">
+                        <Badge :tone="job.window_type === 'addon' ? 'warn' : 'neutral'">{{ windowLabel(job.window_type) }}</Badge>
+                    </p>
                 </div>
-                <button
-                    class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="running || !runPeriod"
-                    @click="runCrawl"
-                >
-                    {{ running ? 'Menjalankan...' : '▶ Jalankan Crawl' }}
-                </button>
-                <span v-if="runMessage" class="text-sm" :class="runError ? 'text-red-600' : 'text-emerald-600'">{{ runMessage }}</span>
+                <div>
+                    <p class="text-xs text-slate-500">Status</p>
+                    <p class="mt-1"><Badge :tone="jobTone(job.status)">{{ jobStatusLabel(job.status) }}</Badge></p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Artikel disimpan</p>
+                    <p class="num mt-1 text-slate-900">{{ formatNumber(job.stats?.kept) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Ditemukan</p>
+                    <p class="num mt-1 text-slate-700">{{ formatNumber(job.stats?.fetched) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Duplikat</p>
+                    <p class="num mt-1 text-slate-700">{{ formatNumber(job.stats?.skipped_duplicate) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Gagal</p>
+                    <p class="num mt-1 text-slate-700">{{ formatNumber(job.stats?.failed) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">Selesai</p>
+                    <p class="mt-1 text-sm text-slate-700">{{ formatDate(job.finished_at, { withTime: true }) }}</p>
+                </div>
             </div>
-        </div>
+
+            <EmptyState v-else title="Belum ada crawl job" description="Job pertama muncul setelah crawl terjadwal atau manual dijalankan." />
+        </section>
     </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import axios from 'axios';
+import Badge from '../components/Badge.vue';
+import EmptyState from '../components/EmptyState.vue';
+import StatCard from '../components/StatCard.vue';
+import { fetchDashboardStats, errorMessage } from '../lib/api';
+import { categoryLabel, formatDate, formatNumber, formatPeriod, jobStatusLabel, windowLabel } from '../lib/format';
+
+const JOB_TONES = { completed: 'accent', partial: 'warn', failed: 'danger', running: 'info', queued: 'info' };
 
 const stats = ref({});
-const loading = ref(true);
-const runPeriod = ref('');
-const runWindow = ref('main');
-const running = ref(false);
-const runMessage = ref('');
-const runError = ref(false);
+const period = ref('');
+const error = ref('');
 
-const statCards = computed(() => [
-    { label: 'Total Artikel', value: stats.value.total_articles ?? 0, icon: '📰', sub: stats.value.period ? `Periode ${stats.value.period}` : 'Semua periode' },
-    { label: 'Perlu Review', value: stats.value.needs_review ?? 0, icon: '🔍', sub: 'Kategori/tanggal tidak pasti' },
-    { label: 'Artikel Addon', value: stats.value.addon_articles ?? 0, icon: '➕', sub: 'Berita 1–10 bulan berikutnya' },
-    { label: 'Sumber Aktif', value: stats.value.total_sources ?? 0, icon: '🌐', sub: 'Media terkonfigurasi' },
-]);
+onMounted(load);
 
-onMounted(async () => {
+async function load() {
+    error.value = '';
     try {
-        const { data } = await axios.get('/dashboard/stats');
-        if (data && typeof data === 'object') stats.value = data;
+        stats.value = await fetchDashboardStats(period.value ? { period: period.value } : undefined);
     } catch (e) {
-        console.error(e);
-    } finally {
-        loading.value = false;
+        error.value = errorMessage(e, 'Gagal memuat ringkasan dashboard.');
     }
+}
+
+const categoryRows = computed(() =>
+    Object.entries(stats.value.by_category ?? {}).map(([key, count]) => ({
+        key,
+        label: categoryLabel(key),
+        count,
+    })),
+);
+
+const sourceRows = computed(() => stats.value.by_source ?? []);
+
+const job = computed(() => stats.value.latest_job ?? null);
+
+const maxValue = computed(() => {
+    const counts = [
+        ...categoryRows.value.map((row) => row.count),
+        ...sourceRows.value.map((row) => row.total),
+    ];
+    return Math.max(...counts, 1);
 });
 
-function categoryLabel(cat) {
-    return { commodity: 'Komoditas', policy: 'Kebijakan', logistics: 'Logistik', other: 'Lainnya', unclear: 'Belum jelas' }[cat] ?? cat;
-}
-
-function categoryColor(cat) {
-    return { commodity: '#10b981', policy: '#6366f1', logistics: '#f59e0b', other: '#94a3b8', unclear: '#cbd5e1' }[cat] ?? '#94a3b8';
-}
-
 function barWidth(count) {
-    const max = Math.max(...Object.values(stats.value.by_category ?? {}), ...(stats.value.by_source ?? []).map((r) => r.total), 1);
-    return Math.max(4, Math.round((count / max) * 100)) + '%';
+    if (!count) return '0%';
+    return `${Math.max(4, Math.round((count / maxValue.value) * 100))}%`;
 }
 
-function statusClass(status) {
-    return {
-        completed: 'bg-emerald-100 text-emerald-700',
-        partial: 'bg-amber-100 text-amber-700',
-        failed: 'bg-red-100 text-red-700',
-        running: 'bg-blue-100 text-blue-700',
-        queued: 'bg-slate-100 text-slate-600',
-    }[status] ?? 'bg-slate-100 text-slate-600';
-}
-
-function formatDate(value) {
-    if (!value) return '-';
-    return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-async function runCrawl() {
-    running.value = true;
-    runMessage.value = '';
-    runError.value = false;
-    try {
-        const { data } = await axios.post('/crawl-jobs/run', {
-            period: runPeriod.value,
-            window: runWindow.value,
-            trigger: 'manual',
-        });
-        runMessage.value = `Job #${data.job.id} dibuat (${data.job.status}).`;
-    } catch (e) {
-        runError.value = true;
-        runMessage.value = e.response?.data?.message ?? 'Gagal menjalankan crawl.';
-    } finally {
-        running.value = false;
-    }
+function jobTone(status) {
+    return JOB_TONES[status] ?? 'neutral';
 }
 </script>

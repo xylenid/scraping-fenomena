@@ -20,21 +20,27 @@ class DashboardController extends Controller
         }
 
         $totalArticles = (clone $articlesQuery)->count();
-        $byCategory = (clone $articlesQuery)
+
+        $categoryCounts = (clone $articlesQuery)
             ->selectRaw('category_primary, count(*) as total')
             ->groupBy('category_primary')
             ->pluck('total', 'category_primary');
 
+        $byCategory = collect(Article::CATEGORIES)
+            ->mapWithKeys(fn (string $category) => [$category => (int) ($categoryCounts[$category] ?? 0)]);
+
         $bySource = (clone $articlesQuery)
             ->selectRaw('source_id, count(*) as total')
             ->groupBy('source_id')
+            ->orderByDesc('total')
             ->with('source:id,code,name')
             ->get()
             ->map(fn ($row) => [
                 'source' => $row->source?->name ?? "Source #{$row->source_id}",
                 'code' => $row->source?->code,
                 'total' => $row->total,
-            ]);
+            ])
+            ->values();
 
         $needsReview = (clone $articlesQuery)->where('needs_review', true)->count();
         $addonCount = (clone $articlesQuery)->where('is_addon', true)->count();
@@ -43,6 +49,11 @@ class DashboardController extends Controller
 
         return response()->json([
             'period' => $period,
+            'periods' => Article::query()
+                ->whereNotNull('period_target')
+                ->distinct()
+                ->orderByDesc('period_target')
+                ->pluck('period_target'),
             'total_articles' => $totalArticles,
             'by_category' => $byCategory,
             'by_source' => $bySource,

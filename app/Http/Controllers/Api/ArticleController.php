@@ -5,51 +5,66 @@ namespace App\Http\Controllers\Api;
 use App\Models\Article;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ArticleController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'period' => ['sometimes', 'nullable', 'regex:/^\d{4}-\d{2}$/'],
+            'source' => ['sometimes', 'nullable', 'string', 'exists:sources,code'],
+            'category' => ['sometimes', 'nullable', Rule::in(Article::CATEGORIES)],
+            'q' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'needs_review' => ['sometimes', 'boolean'],
+            'is_addon' => ['sometimes', 'boolean'],
+            'per_page' => ['sometimes', 'integer', 'min:5', 'max:100'],
+        ]);
+
         $query = Article::query()
             ->with(['source:id,code,name', 'crawlJob:id,period,window_type'])
             ->withCount('entities');
 
-        // Filter periode
-        if ($request->filled('period')) {
-            $query->where('period_target', $request->input('period'));
-        }
+        $query->when(
+            $validated['period'] ?? null,
+            fn ($q, $period) => $q->where('period_target', $period),
+        );
 
-        // Filter sumber
-        if ($request->filled('source')) {
-            $query->where('source_id', $request->input('source'));
-        }
+        $query->when(
+            $validated['source'] ?? null,
+            fn ($q, $code) => $q->whereHas('source', fn ($s) => $s->where('code', $code)),
+        );
 
-        // Filter kategori
-        if ($request->filled('category')) {
-            $query->where('category_primary', $request->input('category'));
-        }
+        $query->when(
+            $validated['category'] ?? null,
+            fn ($q, $category) => $q->where('category_primary', $category),
+        );
 
-        // Filter needs_review
-        if ($request->boolean('needs_review')) {
-            $query->where('needs_review', true);
-        }
+        $query->when(
+            $request->boolean('needs_review'),
+            fn ($q) => $q->where('needs_review', true),
+        );
 
-        // Filter addon
-        if ($request->boolean('is_addon')) {
-            $query->where('is_addon', true);
-        }
+        $query->when(
+            $request->boolean('is_addon'),
+            fn ($q) => $q->where('is_addon', true),
+        );
 
-        // Pencarian teks
-        if ($request->filled('q')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('title', 'ilike', '%' . $request->input('q') . '%')
-                    ->orWhere('author', 'ilike', '%' . $request->input('q') . '%');
-            });
-        }
+        $query->when(
+            $validated['q'] ?? null,
+            function ($q, $term) {
+                $q->where(function ($sub) use ($term) {
+                    $sub->where('title', 'ilike', "%{$term}%")
+                        ->orWhere('author', 'ilike', "%{$term}%");
+                });
+            },
+        );
 
         $articles = $query
             ->orderByDesc('published_at')
-            ->paginate($request->integer('per_page', 20));
+            ->orderByDesc('id')
+            ->paginate($validated['per_page'] ?? 20)
+            ->withQueryString();
 
         return response()->json($articles);
     }

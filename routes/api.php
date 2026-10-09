@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function () {
 
     // Crawl jobs
     Route::get('crawl-jobs', [CrawlJobController::class, 'index']);
+    Route::get('crawl-jobs/periods', [CrawlJobController::class, 'periods']);
     Route::get('crawl-jobs/{job}', [CrawlJobController::class, 'show']);
     Route::post('crawl-jobs/run', [CrawlJobController::class, 'run']);
 });

@@ -12,6 +12,9 @@ class Article extends Model
 {
     use HasFactory;
 
+    /** Kategori fenomena yang dipakai classifier dan filter API. */
+    public const CATEGORIES = ['commodity', 'policy', 'logistics', 'other', 'unclear'];
+
     protected $fillable = [
         'source_id',
         'crawl_job_id',

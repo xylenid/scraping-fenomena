@@ -11,12 +11,30 @@ class CrawlJobController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'period' => ['sometimes', 'nullable', 'regex:/^\d{4}-\d{2}$/'],
+            'per_page' => ['sometimes', 'integer', 'min:5', 'max:100'],
+        ]);
+
         $jobs = CrawlJob::query()
+            ->when($validated['period'] ?? null, fn ($q, $period) => $q->where('period', $period))
             ->withCount('articles')
             ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate($validated['per_page'] ?? 20)
+            ->withQueryString();
 
         return response()->json($jobs);
+    }
+
+    public function periods(): JsonResponse
+    {
+        return response()->json(
+            CrawlJob::query()
+                ->distinct()
+                ->orderByDesc('period')
+                ->pluck('period')
+                ->values(),
+        );
     }
 
     public function show(CrawlJob $job): JsonResponse
