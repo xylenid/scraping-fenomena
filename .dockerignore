@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist
+public/build
+.sass-cache
+
+# Laravel
+/vendor
+.env
+.env.*
+!.env.example
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+!storage/framework/.gitignore
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/testing/.gitignore
+!storage/framework/views/.gitignore
+!storage/logs/.gitignore
+
+# Tests
+.phpunit.cache
+.phpunit.result.cache
+coverage
+tests
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# CI
+.github
+
+# Scripts node_modules (will be copied from build stage)
+scripts/node_modules
+
+# Misc
+*.log
+*.sqlite
+*.sqlite3
+audit.sqlite
+files/audit.sqlite
+cypress
+playwright-report
+test-results
